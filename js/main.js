@@ -151,7 +151,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   const o = e.target.closest('[data-open]');
-  if (o) openDrawer(o.dataset.open);
+  if (o) { e.preventDefault(); openDrawer(o.dataset.open); }   // href="#" 때문에 홈으로 넘어가지 않게
 });
 
 // 위 막대 버튼: 지금 단계로 이동

@@ -501,6 +501,9 @@ table.pt td .muted.small { white-space: normal; }
   .topbar { position: sticky; top: 0; z-index: 40; }
   .side { position: sticky; top: var(--tb, 56px); height: calc(100vh - var(--tb, 56px)); overflow-y: auto; align-self: start; }
   .pt-cols { align-items: start; }
+}
+/* 목록이 옆에 나란히 있을 때만 따라오게. 한 줄로 쌓이는 화면(아이패드 세로 등)에서 따라오면 내용을 가려요 */
+@media (min-width: 1000px) {
   .stick { position: sticky; top: calc(var(--tb, 56px) + 12px); max-height: calc(100vh - var(--tb, 56px) - 24px); overflow-y: auto; }
 }
 /* 의견 보내기 (PC: 메뉴 맨 아래 작은 칸 / 휴대폰: 메뉴 링크 → 창) */
