@@ -12,7 +12,16 @@ const pc = (v) => (v == null || isNaN(v) ? '?' : `${(v * 100).toFixed(1)}%`);
 const POWER = new Set(['ACC', 'B10', 'SEC', 'P12', 'BE', 'B12']);
 const ftIn = (inch) => `${Math.floor(inch / 12)}피트 ${Math.round(inch % 12)}인치`;
 const grp = (pos) => { const s = String(pos || ''); return /C/.test(s) ? 'C' : /PF|SF|F/.test(s) ? 'F' : 'G'; };
-const LEAGUE_KO = { 'NBA G League': 'G리그', 'Overtime Elite': '오버타임 엘리트(고교 리그)', NBL: '호주 NBL', 'Liga ACB': '스페인 ACB', 'Liga ACB (Spain)': '스페인 ACB', LBA: '이탈리아 LBA', 'LNB Pro A': '프랑스 리그', ABA: '아드리아틱 리그', 'LEB Oro (Spain)': '스페인 2부 리그', 'NBB (Brazil)': '브라질 NBB' };
+const LEAGUE_KO = {
+  'NBA G League': 'G리그', 'G League': 'G리그', 'Overtime Elite': '오버타임 엘리트(고교 리그)', 'Prep (post-graduate)': '프렙 스쿨(고교 졸업 후 과정)',
+  NBL: '호주 NBL', 'Liga ACB': '스페인 ACB', 'Liga ACB (Spain)': '스페인 ACB', 'LEB Oro (Spain)': '스페인 2부 리그', 'LEB Plata (Spain 3rd tier)': '스페인 3부 리그',
+  LBA: '이탈리아 LBA', 'LBA (Serie A)': '이탈리아 LBA', 'Lega Basket Serie A (Italy)': '이탈리아 LBA',
+  'LNB Pro A': '프랑스 1부 리그', 'LNB Élite': '프랑스 1부 리그', 'LNB Pro A (Jeep Elite)': '프랑스 1부 리그', 'LNB Pro A / Betclic Elite (France)': '프랑스 1부 리그', 'LNB Pro B (France)': '프랑스 2부 리그',
+  ABA: '아드리아틱 리그', 'ABA League (Adriatic)': '아드리아틱 리그', EuroLeague: '유로리그', 'EuroLeague (assumed; Wikipedia table competition not labelled)': '유로리그', EuroCup: '유로컵',
+  BSL: '튀르키예 리그', GBL: '그리스 리그', IBSL: '이스라엘 리그', 'Israeli Winner League (Ligat HaAl)': '이스라엘 리그', 'Pro Basketball League (Belgium)': '벨기에 리그',
+  'NBB (Brazil)': '브라질 NBB', CBA: '중국 CBA', 'Road to BAL (FIBA Africa club qualifiers)': '아프리카 농구 리그 예선',
+  'RSEQ / CCAA (Quebec collegiate, CEGEP)': '캐나다 퀘벡 대학 리그', 'NAIA (Mid-South Conference)': '미국 NAIA 대학 리그',
+};
 
 export const poolOf = (p) => (state.data?.draft_pool || []).find((x) => x.player_id === (p.prospect_id || p.player_id));
 
@@ -106,4 +115,47 @@ export function report(p) {
   const q = (p.rookie || p.prospect_id) ? poolOf(p) : null;
   if (q && !(p.nba_history || []).length) return prospect(q);                   // 올해 신인
   return veteran(p);
+}
+
+// ── 한 줄 요약: 막대(기록)에 없는 것만 짧게. 역할·나이·몸·평가 ──
+const GRP_KO = { G: '가드', F: '포워드', C: '센터' };
+export function oneLine(p) {
+  if (!p) return '';
+  const q = p.college_seasons || p.pre_draft_rank || p.combine ? p : (p.rookie || p.prospect_id) && !(p.nba_history || []).length ? poolOf(p) : null;
+  return q ? prospectLine(q) : veteranLine(p);
+}
+const KO_PAREN = { 'Fr.': '1학년', 'So.': '2학년', 'Jr.': '3학년', 'Sr.': '4학년', loan: '임대', postgraduate: '고교 졸업 후 과정', 'Overtime Elite': '오버타임 엘리트' };
+const koTeam = (t) => String(t || '').replace(/G League Ignite/g, '이그나이트').replace(/\(([^)]+)\)/g, (m, x) => (KO_PAREN[x] ? `(${KO_PAREN[x]})` : m));
+function prospectLine(q) {
+  const cs = q.college_seasons || [], ps = (q.pro_seasons || []).filter((r) => r.competition !== 'national_team'), gl = q.gleague_seasons || [];
+  const last = cs[cs.length - 1], pro = ps[ps.length - 1], g = gl[gl.length - 1], bits = [];
+  if (last && (!pro || last.season >= (pro.season || ''))) bits.push(`${q.college || last.college_id}${last.conf ? `(${POWER.has(last.conf) ? '상위권' : '중소'} 리그)` : ''}${q.class_at_draft ? ' ' + q.class_at_draft : ''}`);
+  else if (pro) { const lg = LEAGUE_KO[pro.league] || pro.league || '해외 리그', tm = koTeam(pro.team); bits.push(lg === 'G리그' && /이그나이트/.test(tm) ? 'G리그 이그나이트' : `${lg}${tm ? ' ' + tm : ''}`); }
+  else if (g) bits.push(`G리그${g.team_id === 'GLI' ? ' 이그나이트' : ''}`);
+  else bits.push(koTeam(q.pre_draft_team) || '경기 기록 없음');
+  const age = q.age_at_draft;
+  if (age != null) bits.push(`${age}세${age <= 19 ? ', 성장 여지 큼' : age >= 22 ? ', 완성형' : ''}`);
+  const c = q.combine || {};
+  if (!c.skipped && c.height_shoes) {
+    const span = c.wingspan ? c.wingspan - c.height_shoes : null;
+    bits.push(`키 ${ftIn(c.height_shoes)}${span != null && Math.abs(span) >= 2 ? `, 윙스팬 ${span > 0 ? '+' : '−'}${f1(Math.abs(span))}인치` : ''}${c.max_vertical >= 38 ? ', 탄력 뛰어남' : ''}`);
+  } else bits.push('컴바인 불참');
+  if (q.pre_draft_rank?.rank) bits.push(`빅보드 ${q.pre_draft_rank.rank}위`);
+  return bits.join(' · ');
+}
+function veteranLine(p) {
+  const h = p.nba_history || [], last = h[h.length - 1];
+  if (!last) return `NBA 기록 없음 · ${p.age ?? '?'}세`;
+  const b = bpmOf(p), G = GRP_KO[grp(last.pos || p.pos)];
+  const bits = [`${b >= 4 ? '팀의 핵심' : b >= 1.5 ? '확실한 주전급' : b >= -0.5 ? '주전·로테이션 경계의' : b >= -2 ? '로테이션' : '벤치 끝'} ${G}`];
+  const r = last.g ? (last.gs ?? 0) / last.g : null;
+  if (r != null) bits.push(`${last.season} ${r >= 0.6 ? '주전' : r >= 0.2 ? '주전·벤치' : '벤치'} ${last.g}경기`);
+  const age = p.age;
+  if (age != null) bits.push(`${age}세 ${age <= 24 ? '성장기' : age <= 29 ? '전성기' : age <= 32 ? '하락 시작' : '하락 구간'}`);
+  const recent = h.slice(-3), gAvg = recent.reduce((a, x) => a + (x.g || 0), 0) / recent.length;
+  if (recent.length >= 2 && gAvg < 50) bits.push('결장 잦음');
+  const as = (p.honors || []).filter((x) => /올스타/.test(x.honor)).length, an = (p.honors || []).filter((x) => /올-NBA/.test(x.honor)).length;
+  if (as) bits.push(`올스타 ${as}회`);
+  if (an) bits.push(`올-NBA ${an}회`);
+  return bits.join(' · ');
 }

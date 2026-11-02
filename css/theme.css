@@ -215,3 +215,4 @@ ol.ticker li.mine { background: color-mix(in srgb, var(--accent) 14%, var(--pane
 .notice { border-radius: 6px; border-top: 5px solid var(--accent); }
 .deal-stamp { background: color-mix(in srgb, var(--team-deep) 94%, transparent); }
 .deal-stamp::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--accent); }
+.sline { margin: 8px 0 0; padding: 7px 10px; background: var(--soft); border-left: 3px solid var(--accent); border-radius: 2px; font-size: 13.5px; font-weight: 600; line-height: 1.45; }

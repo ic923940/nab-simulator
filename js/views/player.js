@@ -4,7 +4,7 @@ import { barsHTML } from './bars.js';
 import { state, teamBy } from '../store.js';
 import { rosterTable } from './team.js';
 import { term } from '../glossary.js';
-import { report } from '../scout.js';
+import { oneLine } from '../scout.js';
 import { percentile } from '../draft.js';
 
 // 드래프트 화면이 상세 창에 '지명' 버튼을 붙일 때 씀
@@ -22,7 +22,7 @@ export function findPlayer(id) {
   return fa ? { p: fa, team: null } : null;
 }
 
-const scout3 = (p) => { const ls = report(p); return `<h3>리그 평균과 비교</h3>${barsHTML(p)}` + (ls.length ? `<ol class="scout3" aria-label="스카우트 리포트">${ls.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''); };
+const scout3 = (p) => { const line = oneLine(p); return (line ? `<p class="sline">${esc(line)}</p>` : '') + `<h3>리그 평균과 비교</h3>${barsHTML(p)}`; };
 export function playerHTML(id) {
   const f = findPlayer(id); if (!f) return '<p>선수를 찾지 못했어요.</p>';
   const { p, team } = f, c = p.contract || {};
