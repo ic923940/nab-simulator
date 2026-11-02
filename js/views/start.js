@@ -8,26 +8,44 @@ const pick = { year: null, team: null, mode: 'quick' };
 
 export async function renderStart(root, go) {
   const save = loadSave();
+  const DAY = ['일', '월', '화', '수', '목', '금', '토'];
+  const dateOf = (y) => YEARS.find((x) => x.y === y)?.draft;
   root.innerHTML = `
-  <div class="start">
-    <h1>NBA 단장</h1>
-    <p class="lead">드래프트 당일로 돌아가 한 팀의 단장이 됩니다. 그날까지 알려진 정보만으로 결정하세요.</p>
-    ${save ? `<div class="step"><button class="go" id="resume">이어하기: ${esc(save.year)} ${esc(save.team)}</button>${save.old ? '<p class="warn small">예전 버전에서 시작한 게임이에요. 그 뒤로 화면과 규칙이 많이 바뀌어서 일부가 맞지 않을 수 있어요. 새 게임을 추천해요.</p>' : ''}</div>` : ''}
-    <section class="step"><h2>1. 시작할 드래프트</h2><div class="choices" id="years"></div></section>
-    <section class="step"><h2>2. 맡을 팀</h2><div id="teams"><p class="muted">드래프트 연도를 먼저 고르세요.</p></div></section>
-    <section class="step" hidden><h2>3. 진행 방식</h2><div class="choices" id="modes"></div></section>
-    <section class="step">
-      <label class="consent"><input type="checkbox" id="consent" ${consent() ? 'checked' : ''}>
+  <div class="start2">
+    <header class="s-hero"><div class="s-hero-in">
+      <div class="s-brand"><h1><small>드래프트 당일로 돌아가는 단장 게임</small>NBA 단장</h1>
+        <p>2020~2025년 드래프트 가운데 하루를 골라 한 팀의 단장이 됩니다. 그날까지 알려진 정보만으로 지명하고, 협상하고, 로스터를 꾸리세요.</p></div>
+      <div class="s-board" id="s-board" aria-live="polite"></div>
+    </div></header>
+    <div class="s-body">
+      ${save ? `<div class="s-resume"><button class="go" id="resume">이어하기</button><span><b>${esc(save.year)} 드래프트 · ${esc(save.team)}</b> 진행 중인 게임이 있어요.</span>${save.old ? '<p class="warn small">예전 버전에서 시작한 게임이에요. 그 뒤로 화면과 규칙이 많이 바뀌어서 일부가 맞지 않을 수 있어요. 새 게임을 추천해요.</p>' : ''}</div>` : ''}
+      <section class="s-step"><h2><i>1</i>드래프트 고르기 <span>그해 드래프트 당일 아침으로 갑니다</span></h2><div class="s-years" id="years"></div></section>
+      <section class="s-step"><h2><i>2</i>팀 고르기 <span>지난 시즌 성적과 지금 총연봉</span></h2><div id="teams"><p class="s-wait">드래프트를 먼저 고르면 그해 30개 팀이 나와요.</p></div></section>
+      <section class="s-step" hidden><h2>진행 방식</h2><div class="choices" id="modes"></div></section>
+    </div>
+    <div class="s-go"><div class="s-go-in">
+      <label><input type="checkbox" id="consent" ${consent() ? 'checked' : ''}>
         <span>게임 개선을 위해 익명 플레이 기록(고른 팀, 결정, 머문 화면 등)을 남깁니다. 이름·이메일 같은 개인정보는 모으지 않아요. 언제든 끌 수 있어요.</span></label>
       <button class="go" id="start" disabled>시작하기</button>
-    </section>
+    </div></div>
   </div>`;
+
+  const boardEl = root.querySelector('#s-board');
+  const drawBoard = () => {
+    const d = pick.year && dateOf(pick.year), t = pick.team && teamsCache.find((x) => x.abbr === pick.team);
+    const [yy, mm, dd] = (d || '----.--.--').split(/[-.]/);
+    boardEl.innerHTML = `<div class="k">${d ? `${pick.year} 드래프트 · ${+mm}월 ${+dd}일 (${DAY[new Date(d + 'T12:00:00').getDay()]})` : '드래프트 날짜'}</div>
+      <div class="date${d ? '' : ' off'}">${d ? `${yy}.${mm}.${dd}` : '----.--.--'}</div>
+      <div class="club${t ? '' : ' off'}">${t ? esc(t.name) + ' 단장' : pick.year ? '맡을 팀을 고르세요' : '드래프트를 고르세요'}</div>`;
+  };
+  let teamsCache = [];
+  drawBoard();
 
   const yearsEl = root.querySelector('#years');
   const drawYears = () => {
     yearsEl.innerHTML = YEARS.map(({ y, draft }) => `
-      <button class="choice${pick.year === y ? ' on' : ''}" data-y="${y}">
-        <b>${y} 드래프트</b><small>${y}-${String(y + 1).slice(2)} 시즌<br>드래프트 ${draft}</small></button>`).join('');
+      <button class="s-year${pick.year === y ? ' on' : ''}" data-y="${y}" aria-pressed="${pick.year === y}">
+        <b>${y}</b><small>${y}-${String(y + 1).slice(2)} 시즌<br>드래프트 ${+draft.slice(5, 7)}월 ${+draft.slice(8, 10)}일</small></button>`).join('');
   };
   drawYears();
 
@@ -46,18 +64,19 @@ export async function renderStart(root, go) {
 
   yearsEl.onclick = async (e) => {
     const b = e.target.closest('[data-y]'); if (!b) return;
-    pick.year = +b.dataset.y; pick.team = null; drawYears(); ready();
+    pick.year = +b.dataset.y; pick.team = null; teamsCache = []; drawYears(); drawBoard(); ready();
     track('start_year_select', { year: pick.year });
     const teamsEl = root.querySelector('#teams');
-    teamsEl.innerHTML = '<p class="muted">불러오는 중…</p>';
+    teamsEl.innerHTML = '<p class="s-wait">불러오는 중…</p>';
     try {
       const d = await loadYear(pick.year);
       const rows = d.teams.slice().sort((a, b) => a.name.localeCompare(b.name));
-      teamsEl.innerHTML = `<div class="choices teams">${rows.map((t) => `
-        <button class="choice" data-t="${t.abbr}">
-          <b><span class="swatch" style="background:${TEAM_COLORS[t.abbr]}"></span>${esc(t.name)}</b>
-          <small>${esc(t.prev_season.season)} ${t.prev_season.w}승 ${t.prev_season.l}패${t.prev_season.playoffs ? ' · 플레이오프' : ''} · 총연봉 ${money(t.cap_total_this_season)}</small>
-        </button>`).join('')}</div>`;
+      teamsCache = rows; drawBoard();
+      teamsEl.innerHTML = `<div class="s-teams">${rows.map((t) => { const ps = t.prev_season; return `
+        <button class="s-team" data-t="${t.abbr}" style="--c:${TEAM_COLORS[t.abbr]}" aria-pressed="false">
+          <span class="ab">${t.abbr}</span><span class="nm">${esc(t.name)}</span>
+          <span class="rec"><b>${ps.w}승 ${ps.l}패</b>${ps.playoffs ? ' · 플레이오프' : ''}</span><span class="pay">총연봉 ${money(t.cap_total_this_season)}</span>
+        </button>`; }).join('')}</div>`;
     } catch (err) {
       teamsEl.innerHTML = `<p class="bad">${esc(err.message)}. 게임 폴더의 run_web.bat 으로 열었는지 확인하세요.</p>`;
     }
@@ -65,8 +84,8 @@ export async function renderStart(root, go) {
   root.querySelector('#teams').onclick = (e) => {
     const b = e.target.closest('[data-t]'); if (!b) return;
     pick.team = b.dataset.t;
-    root.querySelectorAll('[data-t]').forEach((x) => x.classList.toggle('on', x === b));
-    applyTeamColor(pick.team); ready();
+    root.querySelectorAll('[data-t]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
+    applyTeamColor(pick.team); drawBoard(); ready();
     track('start_team_select', { year: pick.year, team: pick.team });
   };
   modesEl.onclick = (e) => {

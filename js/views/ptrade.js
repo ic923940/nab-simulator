@@ -1,6 +1,7 @@
 // 선수 트레이드 화면: 우리 선수·미래 지명권 ↔ 상대 선수·미래 지명권
 // 아래 요약: 양쪽 연봉 맞추기 결과, 총연봉·사치세 변화, 우리 예상 승수 변화
 import { esc, money, num } from '../util.js';
+import { capBug } from './capbug.js';
 import { state, teamBy } from '../store.js';
 import { track } from '../analytics.js';
 import { term, tip } from '../glossary.js';
@@ -27,6 +28,7 @@ export function renderPTrade(main) {
   const res = ui.partner && (sel.givePlayers.length || sel.getPlayers.length || sel.givePicks.length || sel.getPicks.length) ? PT.evaluate(ui.partner, sel) : null;
   main.innerHTML = `<h1>선수 트레이드</h1>
     <p class="sub">선수와 미래 지명권을 섞어서 거래할 수 있어요. ${term('salary_matching', '연봉 맞추기')} 규정과 하드캡·로스터 한도를 양쪽 팀 모두 지켜야 해요. 이번 오프시즌에 계약한 선수는 12월 15일 전에는 보낼 수 없어요.</p>
+    ${capBug()}
     ${inboxHTML()}
     <div class="grid2 pt-cols">
       <div class="panel stick"><h2>우리 팀</h2><div class="body">${side(me, ui.gp, ui.gk, 'g')}</div></div>

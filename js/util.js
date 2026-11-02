@@ -23,8 +23,23 @@ export const TEAM_COLORS = {
   NOP: '#0C2340', NYK: '#006BB6', OKC: '#007AC1', ORL: '#0077C0', PHI: '#006BB6', PHO: '#1D1160',
   POR: '#C8102E', SAC: '#5A2D81', SAS: '#2B2B2B', TOR: '#CE1141', UTA: '#002B5C', WAS: '#002B5C',
 };
+// 팀 보조색: 중계 그래픽의 띠·강조 딱지에 씀
+export const TEAM_ACCENT = {
+  ATL: '#FDB927', BOS: '#BA9653', BRK: '#FFFFFF', CHI: '#000000', CHO: '#00788C', CLE: '#FDBB30',
+  DAL: '#B8C4CA', DEN: '#FEC524', DET: '#1D42BA', GSW: '#FFC72C', HOU: '#C4CED4', IND: '#FDBB30',
+  LAC: '#1D428A', LAL: '#FDB927', MEM: '#FFC72C', MIA: '#F9A01B', MIL: '#EEE1C6', MIN: '#78BE20',
+  NOP: '#C8102E', NYK: '#F58426', OKC: '#EF3B24', ORL: '#C4CED4', PHI: '#ED174C', PHO: '#E56020',
+  POR: '#000000', SAC: '#63727A', SAS: '#C4CED4', TOR: '#000000', UTA: '#F9A01B', WAS: '#E31837',
+};
+// 배경색 위에 올릴 글자색 (밝은 색이면 검정, 어두우면 흰색)
+export function inkOn(hex) {
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.33 ? '#12161c' : '#ffffff';
+}
 export function applyTeamColor(abbr) {
-  document.documentElement.style.setProperty('--team', TEAM_COLORS[abbr] || '#2b4c7e');
+  const st = document.documentElement.style, a = TEAM_ACCENT[abbr] || '#F9A01B';
+  st.setProperty('--team', TEAM_COLORS[abbr] || '#2b4c7e');
+  st.setProperty('--accent', a); st.setProperty('--accent-ink', inkOn(a));
 }
 
 export const OPTION_KO = {

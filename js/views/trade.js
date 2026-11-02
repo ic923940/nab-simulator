@@ -12,7 +12,7 @@ import { term, tip } from '../glossary.js';
 import * as OF from '../offers.js';
 import { notice } from '../ui.js';
 
-const ui = { partner: null, give: new Set(), get: new Set(), reply: null, warn: null };
+const ui = { partner: null, give: new Set(), get: new Set(), reply: null, warn: null, tab: null };
 const KIND = { swap_right: '교환권', conditional: '조건부 권리' };
 const name = (abbr) => teamBy(abbr)?.name || abbr;
 
@@ -70,13 +70,20 @@ export function renderTrade(main, go) {
   const prof = ui.partner ? gmProfile(ui.partner) : null;
   const fy = futureYears();
   for (const o of OF.openWindow()) track('trade_offer_in', { id: o.id, partner: o.team, motive: o.motive, ratio: o.ratio, where: 'window' });
+  const openN = OF.openOffers('window').length;
+  if (!ui.tab) ui.tab = openN ? 'in' : 'out';
+  const tab = ui.tab;
 
   main.innerHTML = `<h1>지명권 트레이드</h1>
     <p class="sub">이번 드래프트 지명권과 ${term('future_pick', '미래 지명권')}(${fy.length ? `${fy[0]}~${fy[fy.length - 1]}년` : '없음'})을 거래할 수 있어요. 남은 제안 <b>${s.tradesLeft}번</b>.
       ${term('stepien', 'Stepien 규칙')}이 적용돼요.</p>
     ${myPicksHTML(me)}
     ${fy.length && fy[fy.length - 1] < s.year + 4 ? `<p class="muted small">${fy[fy.length - 1] + 1}년 이후 지명권은 아직 자료 검증 중이라 거래할 수 없어요.</p>` : ''}
-    ${inboxHTML()}
+    <div class="ttabs" role="tablist">
+      <button role="tab" data-tt="in" aria-selected="${tab === 'in'}" class="${tab === 'in' ? 'on' : ''}">받은 제안${openN ? ` <span class="badge">${openN}</span>` : ''}<small>다른 구단이 먼저 연락한 것</small></button>
+      <button role="tab" data-tt="out" aria-selected="${tab === 'out'}" class="${tab === 'out' ? 'on' : ''}">우리가 제안하기<small>남은 제안 ${s.tradesLeft}번</small></button>
+    </div>
+    ${tab === 'in' ? inboxHTML() : `
     <div class="grid2">
       <div class="panel"><h2>우리가 줄 지명권</h2><div class="body">${pickList(me, ui.give, 'give')}</div></div>
       <div class="panel"><h2>상대 구단 <select id="partner"><option value="">구단 선택</option>${teams.map((t) => `<option value="${t.abbr}" ${t.abbr === ui.partner ? 'selected' : ''}>${esc(t.name)} (${assetsOf(t.abbr).length})</option>`).join('')}</select></h2>
@@ -87,12 +94,16 @@ export function renderTrade(main, go) {
       ${ui.warn ? `<p class="bad">${esc(ui.warn)}</p>` : ''}
       ${ui.reply ? `<p class="${ui.reply.result === 'accept' ? 'good' : ui.reply.result === 'counter' ? 'warn' : 'bad'}"><b>${esc(name(ui.reply.team))}:</b> ${esc(ui.reply.reason)}</p>` : ''}
       ${ui.reply?.result === 'counter' ? `<p><button class="go" id="take-counter">역제안 받아들이기</button> <button class="go ghost" id="drop-counter">거절</button></p>` : ''}
-      <p><button class="go" id="propose" ${!ui.partner || (!give.length && !get.length) || s.tradesLeft <= 0 || ui.reply?.result === 'counter' ? 'disabled' : ''}>제안하기</button>
-         <button class="go ghost" id="close-window">트레이드 마감하고 드래프트로</button></p>
-    </div></div>
+      <p><button class="go" id="propose" ${!ui.partner || (!give.length && !get.length) || s.tradesLeft <= 0 || ui.reply?.result === 'counter' ? 'disabled' : ''}>제안하기</button></p>
+    </div></div>`}
+    ${tab === 'in' && ui.warn ? `<p class="bad">${esc(ui.warn)}</p>` : ''}${tab === 'in' && ui.reply ? `<p class="good"><b>${esc(name(ui.reply.team))}:</b> ${esc(ui.reply.reason)}</p>` : ''}
+    <div class="tclose"><span class="muted small">거래를 다 했으면 드래프트로 넘어가요. 열려 있는 제안은 사라져요.</span><button class="go ghost" id="close-window">트레이드 마감하고 드래프트로</button></div>
     ${tradeLog(s)}`;
 
-  main.querySelector('#partner').onchange = (e) => {
+  main.querySelectorAll('[data-tt]').forEach((b) => b.onclick = () => { ui.tab = b.dataset.tt; ui.warn = null; if (ui.reply?.result !== 'counter') ui.reply = null; track('trade_tab', { tab: ui.tab, open: openN }); renderTrade(main, go); });
+  main.querySelector('[data-goto-out]')?.addEventListener('click', () => { ui.tab = 'out'; renderTrade(main, go); });
+  const partnerSel = main.querySelector('#partner');
+  if (partnerSel) partnerSel.onchange = (e) => {
     ui.partner = e.target.value || null; ui.get.clear(); ui.reply = null; ui.warn = null;
     if (ui.partner) track('trade_partner_view', { partner: ui.partner, gm: gmProfile(ui.partner).label });
     renderTrade(main, go);
@@ -102,7 +113,8 @@ export function renderTrade(main, go) {
     c.checked ? set.add(c.dataset.key) : set.delete(c.dataset.key);
     ui.reply = null; ui.warn = null; renderTrade(main, go);
   });
-  main.querySelector('#propose').onclick = () => {
+  const proposeBtn = main.querySelector('#propose');
+  if (proposeBtn) proposeBtn.onclick = () => {
     // Stepien 규칙 먼저 (제안 횟수는 쓰지 않음)
     const st = stepienCheck(me, ui.partner, give, get);
     if (st.length) {
@@ -145,7 +157,7 @@ export function renderTrade(main, go) {
       if (r.err) ui.warn = r.err; else { track('trade_done', { partner: o.team, gave: o.get, got: o.give, incoming: true }); ui.reply = { result: 'accept', reason: '좋아요, 거래 성사!', team: o.team }; }
     } else if (act === 'decline') { OF.decline(o); track('trade_offer_reply', { ...meta, reply: 'decline' }); }
     else if (act === 'edit' && x) {   // 조건 조정: 제안 내용을 아래 만들기 칸에 옮김 (보내면 제안 1번 사용)
-      ui.partner = o.team; ui.give = new Set(o.get); ui.get = new Set(o.give); ui.reply = null; ui.warn = null; OF.decline(o);
+      ui.partner = o.team; ui.give = new Set(o.get); ui.get = new Set(o.give); ui.reply = null; ui.warn = null; ui.tab = 'out'; OF.decline(o);
       track('trade_offer_reply', { ...meta, reply: 'edit' });
     }
     ping(); renderTrade(main, go);
@@ -164,8 +176,8 @@ function ping() { const o = OF.maybeMore(); if (o) { ui.ring = o.id; track('trad
 const MOTIVE_KO = { up: '순위 올리기', win_now: '우승 도전', future: '미래 지명권', down: '순위 내리기' };
 function inboxHTML() {
   const all = OF.inbox().list.filter((o) => o.where === 'window'), open = OF.openOffers('window');
-  if (!all.length) return '';
-  return `<div class="panel inbox"><h2>들어온 제안 <span class="muted small">다른 구단이 먼저 연락했어요 · 수락해도 제안 횟수는 줄지 않아요</span></h2><div class="body">
+  if (!all.length) return `<div class="panel inbox"><div class="body"><p>아직 들어온 제안이 없어요. 우리가 먼저 제안을 주고받다 보면 다른 구단이 연락해 오기도 해요.</p><p><button class="go" data-goto-out>우리가 먼저 제안하기</button></p></div></div>`;
+  return `<div class="panel inbox"><h2>들어온 제안 <span class="muted small">수락해도 우리 제안 횟수는 줄지 않아요</span></h2><div class="body">
     ${open.length ? open.map((o) => { const x = OF.resolve(o);
       return `<div class="offer ${ui.ring === o.id ? 'ring' : ''}"><div class="who"><b>${esc(name(o.team))}</b> <span class="tag">${MOTIVE_KO[o.motive]}</span> <span class="muted small">${esc(gmProfile(o.team).label.join(' · '))}</span></div>
         <p class="quote">“${esc(o.msg)}”</p>

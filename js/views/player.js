@@ -1,5 +1,6 @@
 // 선수·유망주·팀 상세 창
 import { esc, money, num, pct, inches, cm, OPTION_KO, lastSeason } from '../util.js';
+import { barsHTML } from './bars.js';
 import { state, teamBy } from '../store.js';
 import { rosterTable } from './team.js';
 import { term } from '../glossary.js';
@@ -21,7 +22,7 @@ export function findPlayer(id) {
   return fa ? { p: fa, team: null } : null;
 }
 
-const scout3 = (p) => { const ls = report(p); return ls.length ? `<ol class="scout3" aria-label="스카우트 리포트">${ls.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''; };
+const scout3 = (p) => { const ls = report(p); return `<h3>리그 평균과 비교</h3>${barsHTML(p)}` + (ls.length ? `<ol class="scout3" aria-label="스카우트 리포트">${ls.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''); };
 export function playerHTML(id) {
   const f = findPlayer(id); if (!f) return '<p>선수를 찾지 못했어요.</p>';
   const { p, team } = f, c = p.contract || {};

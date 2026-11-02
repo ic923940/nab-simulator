@@ -1,5 +1,6 @@
 // 연장 계약 화면: 대상 선수 목록 → 에이전트와 연장 협상 (FA 협상 테이블과 같은 모양)
 import { esc, money, num, lastSeason } from '../util.js';
+import { capBug } from './capbug.js';
 import { state, teamBy } from '../store.js';
 import { track } from '../analytics.js';
 import { term } from '../glossary.js';
@@ -22,6 +23,7 @@ export function renderExt(main) {
   main.innerHTML = `<h1>연장 계약</h1>
     <p class="sub">계약이 끝나기 전에 미리 재계약하는 거예요. 지금 연장하면 FA 시장에 나가지 않지만, 선수는 '나중에 FA로 받을 돈'과 비교해요.
       ${term('rookie_ext', '신인 연장')}은 신인 계약 마지막 해를 앞둔 1라운드 선수, ${term('vet_ext', '베테랑 연장')}은 3년 이상 계약의 2주년이 지난 선수가 대상이에요.</p>
+    ${capBug()}
     <div class="ext-grid">
       <div class="panel"><h2>대상 선수 <span class="muted small">${list.length}명</span></h2><div class="body">${list.length ? list.map(row).join('') : '<p class="muted">지금 연장할 수 있는 선수가 없어요.</p>'}</div></div>
       <div id="ext-room"></div>

@@ -12,6 +12,7 @@ import * as SNT from '../snt.js';
 import * as SL from '../summer.js';
 import { plainLabel } from '../picks.js';
 import { teamPayroll } from '../rules.js';
+import { capBug } from './capbug.js';
 import { renderFA as renderFAList } from './league.js';
 
 const ui = { sel: null, filter: 'mine', q: '', offer: {}, busy: false };
@@ -37,13 +38,13 @@ export function renderFAView(main, go) {
     <div class="clock-side">${nx ? `<div class="small">다음 날짜</div><div class="n">${md(nx.date)}</div><div class="small">${esc(nx.t)}</div>` : '<div class="small">마지막 날짜</div>'}
       <button class="go" id="fa-adv">${nx ? '시간 진행' : 'FA 마감'}</button></div>
   </div></div>
+  <div id="fa-cap"></div>
   <section class="panel board" id="board"></section>
   <div class="fa-grid">
     <section class="panel market stick"><h2>FA 시장</h2><div class="body" id="mk"></div></section>
     <section class="room" id="room"></section>
     <aside class="panel feed"><h2>속보 <span class="muted small">게임 속 소식</span></h2><div class="body" id="feed"></div></aside>
-  </div>
-  <div id="fa-cap"></div>`;
+  </div>`;
   drawBoard(main); drawMarket(main); drawRoom(main); drawFeed(main); drawCap(main);
   main.querySelector('#fa-adv').onclick = () => advance(main, go);
   if (F.pendingMySheets().length) sheetModal(main, go);
@@ -56,7 +57,6 @@ function drawBoard(main) {
   const el = main.querySelector('#board'); if (!el) return;
   const me = state.save.team, sh = capSheet(), t = teamBy(me), std = t.roster.filter((q) => q.roster_role !== 'two_way').length;
   const todo = F.todos(sh.room, std), list = F.watch().map(F.watchStatus).filter(Boolean);
-  const tools = (() => { const any = F.marketRows().find((r) => !r.signed && r.p.contract?.rights_team !== me); return any ? F.toolsFor(me, any.p).filter((x) => !['min', 'two_way', 'ex10', 'bird'].includes(x.k)) : []; })();
   const card = (w) => { const p = w.p, sub = w.phase === 'ours' || w.phase === 'gone' ? `${esc(tn(w.e.team))} · ${w.e.years.length}년 ${money(w.e.years.reduce((a, y) => a + y.salary, 0), 1)}`
       : [w.n ? `소문으로는 제안 ${w.n}개` : '', w.standing ? `우리 제안 ${w.standing.yrs}년 ${money(F.salaries(p, w.standing)[0], 1)}` : ''].filter(Boolean).join(' · ');
     return `<div class="wcard st-${w.phase}" data-sel="${esc(w.pid)}" role="button" tabindex="0"><span class="x" data-star="${esc(w.pid)}" role="button" tabindex="0" aria-label="관심 선수에서 빼기">×</span>
@@ -64,8 +64,7 @@ function drawBoard(main) {
       <div class="wp">${PHASE_KO[w.phase]}</div><div class="ws small">${sub}</div></div>`; };
   const sug = [];   // 추천은 판단 힌트가 돼서 보여 주지 않음
   el.innerHTML = `<div class="board-head"><h2>오늘의 브리핑 <span class="muted small">${F.dateKO(F.curStep().date)}</span></h2>
-      <div class="facts small"><span>캡 여유 <b class="${sh.room > 0 ? 'good' : ''}">${sh.room >= 0 ? money(sh.room, 1) : '없음'}</b></span><span>정규 <b>${std}</b>/15명</span>
-        <span>쓸 수 있는 예외 ${tools.length ? tools.map((x) => `<b>${esc(x.label)} ${money(x.max, 1)}</b>`).join(' · ') : '<b>없음</b>'}</span><a href="#" data-open="team:${esc(me)}">우리 로스터 보기</a></div></div>
+      <div class="facts small"><span>정규 <b>${std}</b>/15명</span><a href="#" data-open="team:${esc(me)}">우리 로스터 보기</a></div></div>
     <div class="board-body">
       <div class="todo"><div class="k">오늘 할 일</div>${todo.length ? `<ol>${todo.map((x) => `<li${x.pid ? ` data-sel="${esc(x.pid)}" class="link"` : ''}>${esc(x.text)}</li>`).join('')}</ol>` : '<p class="muted small">급한 일은 없어요. 시간을 진행해도 돼요.</p>'}</div>
       <div class="wboard"><div class="k">관심 선수판 <span class="muted small">${list.length}명 · 카드를 누르면 협상 테이블로</span></div>
@@ -372,15 +371,9 @@ function drawFeed(main) {
 }
 function drawCap(main) {
   const el = main.querySelector('#fa-cap'); if (!el) return;
-  const sh = capSheet(), t = teamBy(state.save.team), pay = teamPayroll(t, state.data.season), hc = F.hardCap(state.save.team);
-  const std = t.roster.filter((q) => q.roster_role !== 'two_way').length, tw = t.roster.length - std;
-  el.innerHTML = `<div class="capstrip">
-    <div><div class="k">${term('salary_cap', '캡')} 기준 총액 (홀드 포함)</div><div class="v">${money(sh.total, 1)}</div></div>
-    <div><div class="k">캡 여유</div><div class="v ${sh.room >= 0 ? 'good' : ''}">${sh.room >= 0 ? money(sh.room, 1) : '−' + money(-sh.room, 1)}</div></div>
-    <div><div class="k">실제 총연봉</div><div class="v">${money(pay, 1)}</div></div>
-    <div><div class="k">로스터</div><div class="v">${std}<span class="small"> + 투웨이 ${tw}</span></div></div>
-    ${hc ? `<div><div class="k">하드캡</div><div class="v warn">${money(hc.amount, 1)}</div></div>` : ''}
-    <span class="spacer"></span><a href="#/finance" class="small">캡 상황판 · 권리 포기</a></div>`;
+  const me = state.save.team, any = F.marketRows().find((r) => !r.signed && r.p.contract?.rights_team !== me);
+  const ex = any ? F.toolsFor(me, any.p).filter((x) => !['min', 'two_way', 'ex10', 'bird'].includes(x.k)).map((x) => ({ label: x.label, amount: x.max })) : [];
+  el.innerHTML = capBug({ tools: [...ex, { label: '최저연봉' }], hardcap: F.hardCap(me) });
 }
 
 // ── 시간 진행 ──

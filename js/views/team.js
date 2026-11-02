@@ -1,5 +1,6 @@
 // 우리 팀 화면: 홈, 로스터, 재정
 import { esc, money, num, table, lastSeason, OPTION_KO, ROLE_KO, inches } from '../util.js';
+import { capBug } from './capbug.js';
 import { state, myTeam, picksOf } from '../store.js';
 import { assetsOf } from '../picks.js';
 import { capHit, teamPayroll, luxuryTax, capStatus, nextSeasons, capLines, twoWayMax } from '../rules.js';
@@ -96,6 +97,7 @@ export function renderFinance(main) {
   const pay = seasons.map((s) => teamPayroll(t, s));
   const dead = t.dead_money || [];
   main.innerHTML = `<h1>재정</h1><p class="sub">${esc(L.cba)} 기준. 우리 팀은 자금 제한이 없고, 리그 규정만 지키면 돼요. 사치세는 참고용으로 보여줘요.</p>
+    ${capBug()}
     ${capSheetPanel()}
     <div class="panel"><h2>${esc(seasons[0])} 샐러리 위치</h2><div class="body">${capBar(pay[0])}
       <dl class="kv" style="margin-top:8px"><dt>${term('payroll', '총연봉')}</dt><dd><b>${money(pay[0])}</b></dd><dt>${term('min_team_salary', '최소 총연봉')}</dt><dd>${money(L.min_team_salary)}</dd>
@@ -119,9 +121,7 @@ function capSheetPanel() {
   const canRenounce = ['lottery', 'trade', 'draft', 'draft_done', 'offseason'].includes(state.save.phase);
   return `<div class="panel"><h2>${esc(state.data.season)} ${term('cap_sheet', '캡 상황판')}</h2><div class="body">
     <div class="cap-hero">
-      <div><div class="k">캡 여유 (홀드 포함)</div><div class="v ${sh.room >= 0 ? 'good' : ''}">${sh.room >= 0 ? money(sh.room, 1) : '−' + money(-sh.room, 1)}</div></div>
-      <div><div class="k">캡에 잡힌 총액</div><div class="v" style="font-size:40px">${money(sh.total, 1)}</div></div>
-      <div><div class="k">홀드를 모두 포기하면</div><div class="v" style="font-size:40px">${money(L.salary_cap - P.salary - P.dead - P.picks - Math.max(0, 12 - sh.players.length - sh.pickHolds.length) * (L.roster_charge || 0), 1)}</div></div>
+      <div><div class="k">홀드를 모두 포기하면 캡 여유</div><div class="v" style="font-size:40px">${money(L.salary_cap - P.salary - P.dead - P.picks - Math.max(0, 12 - sh.players.length - sh.pickHolds.length) * (L.roster_charge || 0), 1)}</div></div>
     </div>
     <div class="stack" role="img" aria-label="캡 구성">${segs.map(([k, n, v]) => v > 0 ? `<div class="seg2 c-${k}" style="width:${w(v)}" title="${n} ${money(v)}"></div>` : '').join('')}
       ${lines.map(([k, n, v], i) => `<div class="ln${i % 2 ? ' alt' : ''}" style="left:${w(v)}" title="${n} ${money(v)}"><span>${({ salary_cap: '캡', tax_level: '사치세', first_apron: '1차', second_apron: '2차', apron: '에이프런' })[k] || n}</span></div>`).join('')}</div>
