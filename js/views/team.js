@@ -1,5 +1,6 @@
 // 우리 팀 화면: 홈, 로스터, 재정
 import { esc, money, num, table, lastSeason, OPTION_KO, ROLE_KO, inches } from '../util.js';
+import { cardsHTML } from './scout.js';
 import { capBug } from './capbug.js';
 import { state, myTeam, picksOf } from '../store.js';
 import { assetsOf } from '../picks.js';
@@ -85,8 +86,12 @@ export function renderHome(main) {
 
 export function renderRoster(main) {
   const t = myTeam();
+  const tag = (p) => (p.roster_role === 'two_way' ? '투웨이' : p.rookie ? `신인${p.rookie.pick ? ' ' + p.rookie.pick + '순위' : ''}` : '');
+  const order = t.roster.slice().sort((a, b) => (capHit(b, state.data.season) || 0) - (capHit(a, state.data.season) || 0));
   main.innerHTML = `<h1>로스터</h1><p class="sub">${esc(t.roster_basis)} · 선수를 누르면 자세히 볼 수 있어요</p>
-    <div class="panel">${rosterTable('roster', t)}</div>`;
+    <div class="panel">${rosterTable('roster', t)}</div>
+    <h2 class="sec">선수 리포트 <span class="muted small">같은 포지션 선수들과 비교한 막대와 스카우트 한 줄 평 · 연봉 순</span></h2>
+    ${cardsHTML(order.map((p) => ({ p, open: `player:${p.player_id}`, tag: tag(p) })))}`;
 }
 
 export function renderFinance(main) {

@@ -24,6 +24,13 @@ function list() {
   return t.roster.map((p) => ({ p, open: `player:${p.player_id}`, tag: p.roster_role === 'two_way' ? '투웨이' : '' }));
 }
 
+// 선수 카드 목록 (스카우트 리포트·로스터 화면 공통): rows = [{p, open, tag}]
+export function cardsHTML(shown) {
+  return `<div class="scards">${shown.map(({ p, open, tag }) => { const line = oneLine(p), pos = p.pos || p.position || '', age = p.age ?? p.age_at_draft;
+      return `<article class="scard"><header><a href="#" data-open="${esc(open)}" class="nm">${esc(p.name)}</a> <span class="muted small">${esc(pos)}${age ? ` · ${age}세` : ''}${tag ? ` · ${esc(tag)}` : ''}</span>${p.market_value?.salary ? `<span class="mv small">${money(p.market_value.salary, 1)}</span>` : ''}</header>
+        ${barsHTML(p, { compact: true, quiet: true })}${line ? `<p class="sline">${esc(line)}</p>` : ''}</article>`; }).join('') || '<p class="muted">해당하는 선수가 없어요.</p>'}</div>`;
+}
+
 export function renderScout(main) {
   if (!ui.tab) ui.tab = defaultTab();
   const me = state.save.team, q = ui.q.trim().toLowerCase();
@@ -36,9 +43,7 @@ export function renderScout(main) {
     <div class="scout-bar"><div class="chips">${TABS.map(([k, l]) => `<button class="chip ${ui.tab === k ? 'on' : ''}" data-st="${k}">${l}</button>`).join('')}</div>
       ${ui.tab === 'team' ? `<select id="sc-team" aria-label="구단">${others.map((t) => `<option value="${t.abbr}" ${t.abbr === (ui.team || others[0].abbr) ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>` : ''}
       <input class="search" id="sc-q" placeholder="이름 검색" value="${esc(ui.q)}" aria-label="선수 이름 검색"></div>
-    <div class="scards">${shown.map(({ p, open, tag }) => { const line = oneLine(p), pos = p.pos || p.position || '', age = p.age ?? p.age_at_draft;
-      return `<article class="scard"><header><a href="#" data-open="${esc(open)}" class="nm">${esc(p.name)}</a> <span class="muted small">${esc(pos)}${age ? ` · ${age}세` : ''}${tag ? ` · ${esc(tag)}` : ''}</span>${p.market_value?.salary ? `<span class="mv small">${money(p.market_value.salary, 1)}</span>` : ''}</header>
-        ${barsHTML(p, { compact: true, quiet: true })}${line ? `<p class="sline">${esc(line)}</p>` : ''}</article>`; }).join('') || '<p class="muted">해당하는 선수가 없어요.</p>'}</div>
+    ${cardsHTML(shown)}
     ${rows.length > shown.length ? `<p class="muted small">${shown.length}명까지 보여요 (전체 ${rows.length}명). 이름으로 찾아보세요.</p>` : ''}`;
   main.querySelectorAll('[data-st]').forEach((b) => b.onclick = () => { ui.tab = b.dataset.st; track('scout_tab', { tab: ui.tab }); renderScout(main); });
   main.querySelector('#sc-team')?.addEventListener('change', (e) => { ui.team = e.target.value; track('scout_team', { team: ui.team }); renderScout(main); });
